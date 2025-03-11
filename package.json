@@ -1,0 +1,28 @@
+{
+  "name": "docker-manager-backend",
+  "version": "1.0.0",
+  "description": "Backend for managing Docker containers",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn src/index.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dockerode": "^3.3.5",
+    "express": "^4.18.2",
+    "morgan": "^1.10.0",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.13",
+    "@types/dockerode": "^3.3.19",
+    "@types/express": "^4.17.17",
+    "@types/morgan": "^1.9.4",
+    "@types/node": "^18.15.11",
+    "@types/ws": "^8.5.5",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.4"
+  }
+}

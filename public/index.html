@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Docker Container Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Docker Container Manager</h1>
+    
+    <div class="section">
+      <h2>Containers</h2>
+      <button id="refreshButton">Refresh</button>
+      <div id="containerList" class="container-list"></div>
+    </div>
+
+    <div class="section hidden" id="containerDetails">
+      <h2>Container Details: <span id="containerName"></span></h2>
+      
+      <div class="actions">
+        <button id="startButton">Start</button>
+        <button id="stopButton">Stop</button>
+        <button id="restartButton">Restart</button>
+      </div>
+      
+      <div class="console-section">
+        <h3>Console Output</h3>
+        <div id="console" class="console"></div>
+      </div>
+      
+      <div class="command-section">
+        <h3>Execute Command</h3>
+        <div class="command-input">
+          <input type="text" id="commandInput" placeholder="Enter command...">
+          <button id="sendCommandButton">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="script.js"></script>
+</body>
+</html>
