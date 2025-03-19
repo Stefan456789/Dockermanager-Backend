@@ -13,6 +13,16 @@ router.get('/containers', async (req, res, next) => {
   }
 });
 
+// Get a specific container by ID
+router.get('/containers/:id', async (req, res, next) => {
+  try {
+    const container = await dockerService.getContainerById(req.params.id);
+    res.json(container);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Start a container
 router.post('/containers/:id/start', async (req, res, next) => {
   try {
@@ -42,6 +52,5 @@ router.post('/containers/:id/restart', async (req, res, next) => {
     next(error);
   }
 });
-
 
 export { router as dockerRoutes };

@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedContainerId = null;
   
   // API URL
-  const API_URL = '/api/docker';
+  const API_URL = '/api';
   
   // Fetch container list
   async function fetchContainers() {

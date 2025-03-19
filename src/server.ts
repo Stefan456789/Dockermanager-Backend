@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Routes
-app.use('/api/docker', dockerRoutes);
+app.use('/api/', dockerRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

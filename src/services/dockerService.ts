@@ -27,21 +27,7 @@ export class DockerService {
         const containerDetail = docker.getContainer(container.Id);
         const inspect = await containerDetail.inspect();
         
-        return {
-          id: container.Id,
-          name: container.Names[0].replace(/^\//, ''),
-          image: container.Image,
-          state: container.State,
-          status: container.Status,
-          ports: container.Ports.map(port => ({
-            privatePort: port.PrivatePort,
-            publicPort: port.PublicPort,
-            type: port.Type
-          })),
-          created: new Date(container.Created * 1000).toISOString(),
-          tty: inspect.Config.Tty,
-          openStdin: inspect.Config.OpenStdin
-        };
+        return this.convertToContainerInfo(container, inspect);
       });
       
       return Promise.all(containerDetailsPromises);
@@ -49,6 +35,25 @@ export class DockerService {
       console.error('Error listing containers:', error);
       throw new Error(`Failed to list containers: ${(error as Error).message}`);
     }
+  }
+
+  // Helper method to convert Docker container data to ContainerInfo format
+  private convertToContainerInfo(containerData: Docker.ContainerInfo, inspectData: Docker.ContainerInspectInfo): ContainerInfo {
+    return {
+      id: containerData.Id,
+      name: containerData.Names[0].replace(/^\//, ''),
+      image: containerData.Image,
+      state: containerData.State,
+      status: containerData.Status,
+      ports: (containerData.Ports || []).map((port: any) => ({
+        privatePort: port.PrivatePort,
+        publicPort: port.PublicPort,
+        type: port.Type
+      })),
+      created: new Date(containerData.Created * 1000).toISOString(),
+      tty: inspectData.Config.Tty,
+      openStdin: inspectData.Config.OpenStdin
+    };
   }
 
   async startContainer(containerId: string): Promise<void> {
@@ -79,6 +84,17 @@ export class DockerService {
       console.error('Error restarting container:', error);
       throw new Error(`Failed to restart container: ${(error as Error).message}`);
     }
+  }
+
+  async getContainerById(containerId: string): Promise<ContainerInfo> {
+    return this.listContainers().then((containers) => {
+      const container = containers.find((c) => c.id === containerId);
+      if (container) {
+        return container;
+      } else {
+        throw new Error('Container not found');
+      }
+    });
   }
 }
 

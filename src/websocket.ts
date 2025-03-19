@@ -44,18 +44,7 @@ export function setupWebSocketServer(server: HttpServer) {
               output: chunk.toString()
             }));
           });
-        } else if (data.type === 'stdin' && data.containerId && data.input) {
-          const container = docker.getContainer(data.containerId);
-          const attachOptions = {
-            stream: true,
-            stdin: true,
-            stdout: true,
-            stderr: true
-          };
-
-          const stream = await container.attach(attachOptions);
-          stream.write(data.input + '\n');
-        }
+        } 
       } catch (error) {
         console.error('WebSocket error:', error);
         ws.send(JSON.stringify({ type: 'error', message: 'Error processing command' }));
