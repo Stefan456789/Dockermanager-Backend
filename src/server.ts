@@ -3,6 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
 import { dockerRoutes } from './routes/dockerRoutes';
+import { authRoutes } from './routes/authRoutes';
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/', dockerRoutes);
 
 // Error handling middleware
