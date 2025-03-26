@@ -2,66 +2,100 @@ import { Server as HttpServer } from 'http';
 import { Server as WebSocketServer } from 'ws';
 import Docker from 'dockerode';
 import { Readable } from 'stream';
+import jwt from 'jsonwebtoken';
+import * as db from './models/database';
 
 const docker = new Docker();
 const containerLogStreams = new Map<string, Readable>();
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 export function setupWebSocketServer(server: HttpServer) {
   const wss = new WebSocketServer({ server, path: '/api/logs' });
 
-  wss.on('connection', (ws, req) => {
-    console.log('WebSocket connection established');
+  wss.on('connection', async (ws, req) => {
+    console.log('WebSocket connection attempt');
     
     // Get container ID from URL query params
     const url = new URL(req.url || '', `http://${req.headers.host}`);
     const containerId = url.searchParams.get('containerId');
+    const token = url.searchParams.get('token');
     
     if (!containerId) {
       ws.close(1008, 'Container ID is required');
       return;
     }
-
-    // Set up log streaming for the container
-    setupContainerLogs(containerId, ws);
     
-    ws.on('message', async (message) => {
-      try {
-        const data = JSON.parse(message.toString());
-        
-        if (data.type === 'command' && data.containerId && data.command) {
-          const container = docker.getContainer(data.containerId);
-          const exec = await container.exec({
-            Cmd: ['sh', '-c', data.command],
-            AttachStdout: true,
-            AttachStderr: true
-          });
+    // Authenticate user
+    if (!token) {
+      ws.close(1008, 'Authentication required');
+      return;
+    }
+    
+    try {
+      // Verify the JWT token
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string };
+      const user = await db.findUserByEmail(decoded.email);
+      
+      if (!user) {
+        ws.close(1008, 'User not found');
+        return;
+      }
+      
+      // TODO: Check container-specific permissions
+      // const hasPermission = checkContainerPermission(user.id, containerId);
+      // if (!hasPermission) {
+      //   ws.close(1008, 'Not authorized for this container');
+      //   return;
+      // }
+      
+      console.log('WebSocket connection established for user:', user.email);
+      
+      // Set up log streaming for the container
+      setupContainerLogs(containerId, ws);
+      
+      ws.on('message', async (message) => {
+        try {
+          const data = JSON.parse(message.toString());
           
-          const stream = await exec.start({ hijack: true, stdin: true });
-          stream.on('data', (chunk) => {
-            ws.send(JSON.stringify({
-              type: 'commandOutput',
-              containerId: data.containerId,
-              output: chunk.toString()
-            }));
-          });
-        } 
-      } catch (error) {
-        console.error('WebSocket error:', error);
-        ws.send(JSON.stringify({ type: 'error', message: 'Error processing command' }));
-      }
-    });
-
-    ws.on('close', () => {
-      // Clean up log stream if it exists
-      if (containerId && containerLogStreams.has(containerId)) {
-        const stream = containerLogStreams.get(containerId);
-        if (stream) {
-          stream.destroy();
+          if (data.type === 'command' && data.containerId && data.command) {
+            const container = docker.getContainer(data.containerId);
+            const exec = await container.exec({
+              Cmd: ['sh', '-c', data.command],
+              AttachStdout: true,
+              AttachStderr: true
+            });
+            
+            const stream = await exec.start({ hijack: true, stdin: true });
+            stream.on('data', (chunk) => {
+              ws.send(JSON.stringify({
+                type: 'commandOutput',
+                containerId: data.containerId,
+                output: chunk.toString()
+              }));
+            });
+          } 
+        } catch (error) {
+          console.error('WebSocket error:', error);
+          ws.send(JSON.stringify({ type: 'error', message: 'Error processing command' }));
         }
-        containerLogStreams.delete(containerId);
-      }
-      console.log('WebSocket connection closed');
-    });
+      });
+
+      ws.on('close', () => {
+        // Clean up log stream if it exists
+        if (containerId && containerLogStreams.has(containerId)) {
+          const stream = containerLogStreams.get(containerId);
+          if (stream) {
+            stream.destroy();
+          }
+          containerLogStreams.delete(containerId);
+        }
+        console.log('WebSocket connection closed');
+      });
+      
+    } catch (error) {
+      console.error('WebSocket authentication error:', error);
+      ws.close(1008, 'Authentication failed');
+    }
   });
 
   return wss;
