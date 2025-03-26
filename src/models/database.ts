@@ -22,7 +22,7 @@ class SqliteDB {
         fs.mkdirSync(dir, { recursive: true });
       }
       
-      this.db = new Database(dbPath);
+      this.db = new Database(dbPath, { verbose: console.log });
       console.log('Initializing SQLite database');
       this.initializeTables();
     } catch (error) {
@@ -76,52 +76,15 @@ class SqliteDB {
   }
 }
 
-// Fallback in-memory database if SQLite fails
-class InMemoryDB {
-  private users: User[] = [];
-
-  constructor() {
-    console.log('Initializing in-memory database (fallback)');
-  }
-
-  findUserByEmail(email: string): User | undefined {
-    return this.users.find(user => user.email === email);
-  }
-
-  createUser(user: { id: string, email: string, name?: string, picture?: string }): User {
-    const existingUser = this.findUserByEmail(user.email);
-    if (existingUser) return existingUser;
-
-    const newUser: User = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      picture: user.picture,
-      created_at: new Date().toISOString()
-    };
-    
-    this.users.push(newUser);
-    return newUser;
-  }
-}
-
-// Database type
-type DatabaseImplementation = SqliteDB | InMemoryDB;
-
 // Database singleton
-let db: DatabaseImplementation | null = null;
+let db: SqliteDB | null = null;
 
 export function getDb() {
   if (db) return db;
   
-  try {
-    // Define a path for the SQLite database file
-    const dbPath = path.join(process.cwd(), 'data', 'dockermanager.db');
-    db = new SqliteDB(dbPath);
-  } catch (error) {
-    console.warn('SQLite initialization failed, falling back to in-memory database:', error);
-    db = new InMemoryDB();
-  }
+  // Define a path for the SQLite database file
+  const dbPath = path.join(process.cwd(), 'data', 'dockermanager.db');
+  db = new SqliteDB(dbPath);
   
   return db;
 }

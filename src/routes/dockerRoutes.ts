@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(authenticate);
 
 // List all containers
-router.get('/containers', async (req, res, next) => {
+router.get('/containers', authorizeContainer, async (req, res, next) => {
   try {
     const containers = await dockerService.listContainers();
     res.json(containers);

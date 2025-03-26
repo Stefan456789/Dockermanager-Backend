@@ -60,6 +60,7 @@ export const authorizeContainer = (req: Request, res: Response, next: NextFuncti
   // For now, just pass through if authenticated
   // Later, we can check if the user has permission for this specific container
   if (!req.user) {
+    console.error('Authorization error: Authentication required');
     return res.status(401).json({ message: 'Authentication required' });
   }
   
