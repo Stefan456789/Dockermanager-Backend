@@ -30,19 +30,6 @@ class SQLiteDB {
       this.initDb();
     } catch (error) {
       this.isSQLiteAvailable = false;
-      console.error('SQLite initialization failed:', error);
-      console.log('\n==== IMPORTANT: better-sqlite3 INSTALLATION ERROR ====');
-      console.log('Please try one of the following solutions:');
-      console.log('1. Rebuild the better-sqlite3 module:');
-      console.log('   npm rebuild better-sqlite3');
-      console.log('   or if using pnpm:');
-      console.log('   cd backend && pnpm rebuild better-sqlite3');
-      console.log('2. Make sure you have build tools installed:');
-      console.log('   - On Ubuntu/Debian: sudo apt install build-essential python3');
-      console.log('   - On Fedora/RHEL: sudo dnf install gcc-c++ make python3');
-      console.log('   - On macOS: xcode-select --install');
-      console.log('3. Alternatively, use a memory-only mode for development');
-      console.log('==========================================\n');
     }
   }
 
@@ -69,13 +56,27 @@ class SQLiteDB {
         id: 'mock-id',
         email: email,
         name: 'Mock User',
-        picture: 'https://via.placeholder.com/150',
+        picture: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
         created_at: new Date().toISOString()
       };
     }
     
-    const stmt = this.db.prepare('SELECT * FROM users WHERE email = ?');
-    return stmt.get(email) as User | undefined;
+    try {
+      const stmt = this.db.prepare('SELECT * FROM users WHERE email = ?');
+      const user = stmt.get(email) as User | undefined;
+      return user;
+    } catch (error) {
+      console.error('Error while querying database:', error);
+      this.isSQLiteAvailable = false;
+      // Return mock user if database query fails
+      return {
+        id: 'mock-id',
+        email: email,
+        name: 'Mock User',
+        picture: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
+        created_at: new Date().toISOString()
+      };
+    }
   }
 
   createUser(user: { id: string, email: string, name?: string, picture?: string }): User {
