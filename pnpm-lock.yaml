@@ -11,6 +11,9 @@ importers:
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.12
+      '@types/sqlite3':
+        specifier: ^5.1.0
+        version: 5.1.0
       better-sqlite3:
         specifier: ^11.9.1
         version: 11.9.1
@@ -172,6 +175,10 @@ packages:
 
   '@types/serve-static@1.15.7':
     resolution: {integrity: sha512-W8Ym+h8nhuRwaKPaDw34QUkwsGi6Rc4yYqvKFo5rm2FUEhCFbzVWrxXUxuKK8TASjWsysJY0nsmNCGhCOIsrOw==}
+
+  '@types/sqlite3@5.1.0':
+    resolution: {integrity: sha512-w25Gd6OzcN0Sb6g/BO7cyee0ugkiLgonhgGYfG+H0W9Ub6PUsC2/4R+KXy2tc80faPIWO3Qytbvr8gP1fU4siA==}
+    deprecated: This is a stub types definition. sqlite3 provides its own type definitions, so you do not need this installed.
 
   '@types/ssh2@1.15.4':
     resolution: {integrity: sha512-9JTQgVBWSgq6mAen6PVnrAmty1lqgCMvpfN+1Ck5WRUsyMYPa6qd50/vMJ0y1zkGpOEgLzm8m8Dx/Y5vRouLaA==}
@@ -1359,6 +1366,13 @@ snapshots:
       '@types/http-errors': 2.0.4
       '@types/node': 18.19.83
       '@types/send': 0.17.4
+
+  '@types/sqlite3@5.1.0':
+    dependencies:
+      sqlite3: 5.1.7
+    transitivePeerDependencies:
+      - bluebird
+      - supports-color
 
   '@types/ssh2@1.15.4':
     dependencies:

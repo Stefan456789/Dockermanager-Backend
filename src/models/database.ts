@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import Database from 'better-sqlite3';
 
+// Database interfaces
 interface User {
   id: string;
   email: string;
@@ -10,33 +11,27 @@ interface User {
   created_at: string;
 }
 
-class SQLiteDB {
-  private db: Database.Database | null = null;
-  private dbPath: string;
-  private isSQLiteAvailable: boolean = true;
-
-  constructor() {
-    this.dbPath = path.join(__dirname, './data/database.sqlite');
-    
-    // Ensure the data directory exists
-    const dataDir = path.dirname(this.dbPath);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-
-    console.log('Initializing SQLite database at:', this.dbPath);
+class SqliteDB {
+  private db: Database.Database;
+  
+  constructor(dbPath: string) {
     try {
-      this.db = new Database(this.dbPath);
-      this.initDb();
+      // Ensure directory exists
+      const dir = path.dirname(dbPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      
+      this.db = new Database(dbPath);
+      console.log('Initializing SQLite database');
+      this.initializeTables();
     } catch (error) {
-      this.isSQLiteAvailable = false;
+      console.error('Failed to initialize SQLite database:', error);
+      throw error;
     }
   }
 
-  private initDb() {
-    if (!this.db) return;
-    
-    // Create users table if it doesn't exist
+  private initializeTables() {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -44,39 +39,13 @@ class SQLiteDB {
         name TEXT,
         picture TEXT,
         created_at TEXT NOT NULL
-      );
+      )
     `);
   }
 
   findUserByEmail(email: string): User | undefined {
-    if (!this.db || !this.isSQLiteAvailable) {
-      console.warn('SQLite database is not available. Using memory mode or returning mock data.');
-      // For development, you might want to return a mock user
-      return {
-        id: 'mock-id',
-        email: email,
-        name: 'Mock User',
-        picture: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
-        created_at: new Date().toISOString()
-      };
-    }
-    
-    try {
-      const stmt = this.db.prepare('SELECT * FROM users WHERE email = ?');
-      const user = stmt.get(email) as User | undefined;
-      return user;
-    } catch (error) {
-      console.error('Error while querying database:', error);
-      this.isSQLiteAvailable = false;
-      // Return mock user if database query fails
-      return {
-        id: 'mock-id',
-        email: email,
-        name: 'Mock User',
-        picture: "https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y",
-        created_at: new Date().toISOString()
-      };
-    }
+    const stmt = this.db.prepare('SELECT * FROM users WHERE email = ?');
+    return stmt.get(email) as User | undefined;
   }
 
   createUser(user: { id: string, email: string, name?: string, picture?: string }): User {
@@ -91,15 +60,9 @@ class SQLiteDB {
       created_at: new Date().toISOString()
     };
     
-    if (!this.db || !this.isSQLiteAvailable) {
-      console.warn('SQLite database is not available. Returning user without saving to database.');
-      return newUser;
-    }
-    
-    const stmt = this.db.prepare(`
-      INSERT INTO users (id, email, name, picture, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `);
+    const stmt = this.db.prepare(
+      'INSERT INTO users (id, email, name, picture, created_at) VALUES (?, ?, ?, ?, ?)'
+    );
     
     stmt.run(
       newUser.id,
@@ -113,13 +76,53 @@ class SQLiteDB {
   }
 }
 
+// Fallback in-memory database if SQLite fails
+class InMemoryDB {
+  private users: User[] = [];
+
+  constructor() {
+    console.log('Initializing in-memory database (fallback)');
+  }
+
+  findUserByEmail(email: string): User | undefined {
+    return this.users.find(user => user.email === email);
+  }
+
+  createUser(user: { id: string, email: string, name?: string, picture?: string }): User {
+    const existingUser = this.findUserByEmail(user.email);
+    if (existingUser) return existingUser;
+
+    const newUser: User = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+      created_at: new Date().toISOString()
+    };
+    
+    this.users.push(newUser);
+    return newUser;
+  }
+}
+
+// Database type
+type DatabaseImplementation = SqliteDB | InMemoryDB;
+
 // Database singleton
-let db: SQLiteDB | null = null;
+let db: DatabaseImplementation | null = null;
 
 export function getDb() {
   if (db) return db;
   
-  db = new SQLiteDB();
+  try {
+    // Define a path for the SQLite database file
+    const dbPath = path.join(process.cwd(), 'data', 'dockermanager.db');
+    db = new SqliteDB(dbPath);
+  } catch (error) {
+    console.warn('SQLite initialization failed, falling back to in-memory database:', error);
+    db = new InMemoryDB();
+  }
+  
   return db;
 }
 
