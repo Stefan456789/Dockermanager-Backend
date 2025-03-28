@@ -33,21 +33,16 @@ export function setupWebSocketServer(server: HttpServer) {
     
     try {
       // Verify the JWT token
-      const decoded = jwt.verify(token, JWT_SECRET) as db.UserContext;
-      const user = await db.findUserByEmail(decoded.email);
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string };
       
-      if (!user) {
-        ws.close(1008, 'User not found');
-        return;
-      }
       
       // Check container-specific permissions using the user context
-      if (!db.hasPermission(decoded.id, 'container.read_console', decoded)) {
+      if (!db.hasPermission(decoded.id, 'container.read_console')) {
         ws.close(1008, 'Not authorized to read console output');
         return;
       }
       
-      console.log('WebSocket connection established for user:', user.email);
+      console.log('WebSocket connection established for user:', decoded.email);
       
       // Set up log streaming for the container
       setupContainerLogs(containerId, ws);
@@ -58,7 +53,7 @@ export function setupWebSocketServer(server: HttpServer) {
           
           if (data.type === 'command' && data.containerId && data.command) {
             // Check write permission for console commands
-            if (!db.hasPermission(decoded.id, 'container.write_console', decoded)) {
+            if (!db.hasPermission(decoded.id, 'container.write_console')) {
               ws.send(JSON.stringify({
                 type: 'error',
                 message: 'Permission denied: You are not authorized to execute commands'

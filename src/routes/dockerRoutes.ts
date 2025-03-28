@@ -1,11 +1,11 @@
 import express from 'express';
 import dockerService from '../services/dockerService';
-import { authenticateJWT, requirePermission } from '../middleware/authMiddleware';
+import { authenticate, requirePermission } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
 // Apply authentication middleware to all Docker routes
-router.use(authenticateJWT);
+router.use(authenticate);
 
 // List all containers
 router.get('/containers', requirePermission('') ,async (req, res, next) => {

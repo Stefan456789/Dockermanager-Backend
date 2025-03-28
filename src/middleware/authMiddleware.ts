@@ -1,38 +1,57 @@
 import { Request, Response, NextFunction } from 'express';
+import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import * as db from '../models/database';
 
-// JWT token secret
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Extend Express Request interface to include user
+// Extend Request type to include user property
 declare global {
   namespace Express {
     interface Request {
-      user?: db.UserContext;
+      user?: {
+        id: string;
+        email: string;
+        name?: string;
+      };
     }
   }
 }
 
-export function authenticateJWT(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers.authorization;
-  
-  if (authHeader) {
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
     const token = authHeader.split(' ')[1];
     
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-      if (err) {
-        return res.status(401).json({ message: 'Invalid or expired token' });
-      }
-      
-      // Set user context in request for later use
-      req.user = decoded as db.UserContext;
-      next();
-    });
-  } else {
-    res.status(401).json({ message: 'Authorization header required' });
+    // Verify the JWT token
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string };
+    
+    // Find the user in the database
+    const user = await db.findUserByEmail(decoded.email);
+    
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+    
+    // Add user info to the request object
+    req.user = {
+      id: user.id,
+      email: user.email,
+      name: user.name
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
-}
+};
 
 // Middleware to check for specific permission
 export function requirePermission(permission: string) {
@@ -43,7 +62,7 @@ export function requirePermission(permission: string) {
     
     try {
       // Check if user has the required permission
-      if (db.hasPermission(req.user.id, permission, req.user)) {
+      if (db.hasPermission(req.user.id, permission)) {
         next();
       } else {
         res.status(403).json({ 
