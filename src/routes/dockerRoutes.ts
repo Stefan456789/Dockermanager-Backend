@@ -1,14 +1,15 @@
 import express from 'express';
 import dockerService from '../services/dockerService';
-import { authenticate, authorizeContainer } from '../middleware/authMiddleware';
+import { authenticateJWT, requirePermission } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
 // Apply authentication middleware to all Docker routes
-router.use(authenticate);
+router.use(authenticateJWT);
 
 // List all containers
-router.get('/containers', authorizeContainer, async (req, res, next) => {
+router.get('/containers', requirePermission('') ,async (req, res, next) => {
+  
   try {
     const containers = await dockerService.listContainers();
     res.json(containers);
@@ -18,7 +19,7 @@ router.get('/containers', authorizeContainer, async (req, res, next) => {
 });
 
 // Get a specific container by ID
-router.get('/containers/:id', authorizeContainer, async (req, res, next) => {
+router.get('/containers/:id', async (req, res, next) => {
   try {
     const container = await dockerService.getContainerById(req.params.id);
     res.json(container);
@@ -28,7 +29,7 @@ router.get('/containers/:id', authorizeContainer, async (req, res, next) => {
 });
 
 // Start a container
-router.post('/containers/:id/start', authorizeContainer, async (req, res, next) => {
+router.post('/containers/:id/start', async (req, res, next) => {
   try {
     await dockerService.startContainer(req.params.id);
     res.json({ success: true, message: 'Container started' });
@@ -38,7 +39,7 @@ router.post('/containers/:id/start', authorizeContainer, async (req, res, next) 
 });
 
 // Stop a container
-router.post('/containers/:id/stop', authorizeContainer, async (req, res, next) => {
+router.post('/containers/:id/stop', async (req, res, next) => {
   try {
     await dockerService.stopContainer(req.params.id);
     res.json({ success: true, message: 'Container stopped' });
@@ -48,7 +49,7 @@ router.post('/containers/:id/stop', authorizeContainer, async (req, res, next) =
 });
 
 // Restart a container
-router.post('/containers/:id/restart', authorizeContainer, async (req, res, next) => {
+router.post('/containers/:id/restart', async (req, res, next) => {
   try {
     await dockerService.restartContainer(req.params.id);
     res.json({ success: true, message: 'Container restarted' });

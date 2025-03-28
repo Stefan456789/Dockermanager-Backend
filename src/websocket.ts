@@ -33,7 +33,7 @@ export function setupWebSocketServer(server: HttpServer) {
     
     try {
       // Verify the JWT token
-      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string };
+      const decoded = jwt.verify(token, JWT_SECRET) as db.UserContext;
       const user = await db.findUserByEmail(decoded.email);
       
       if (!user) {
@@ -41,12 +41,11 @@ export function setupWebSocketServer(server: HttpServer) {
         return;
       }
       
-      // TODO: Check container-specific permissions
-      // const hasPermission = checkContainerPermission(user.id, containerId);
-      // if (!hasPermission) {
-      //   ws.close(1008, 'Not authorized for this container');
-      //   return;
-      // }
+      // Check container-specific permissions using the user context
+      if (!db.hasPermission(decoded.id, 'container.read_console', decoded)) {
+        ws.close(1008, 'Not authorized to read console output');
+        return;
+      }
       
       console.log('WebSocket connection established for user:', user.email);
       
@@ -58,6 +57,15 @@ export function setupWebSocketServer(server: HttpServer) {
           const data = JSON.parse(message.toString());
           
           if (data.type === 'command' && data.containerId && data.command) {
+            // Check write permission for console commands
+            if (!db.hasPermission(decoded.id, 'container.write_console', decoded)) {
+              ws.send(JSON.stringify({
+                type: 'error',
+                message: 'Permission denied: You are not authorized to execute commands'
+              }));
+              return;
+            }
+            
             const container = docker.getContainer(data.containerId);
             const exec = await container.exec({
               Cmd: ['sh', '-c', data.command],

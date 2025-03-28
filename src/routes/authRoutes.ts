@@ -2,6 +2,7 @@ import express from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import * as db from '../models/database';
+import { authenticateJWT, requirePermission } from '../middleware/authMiddleware';
 
 const router = express.Router();
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -89,6 +90,21 @@ router.post('/verify-token', async (req, res) => {
   } catch (error) {
     console.error('Token verification error:', error);
     return res.status(401).json({ valid: false, message: 'Invalid token' });
+  }
+});
+
+// Get current user's permissions (requires auth)
+router.get('/permissions', authenticateJWT, (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    
+    const permissions = db.getUserPermissions(req.user.id, req.user);
+    return res.json({ permissions });
+  } catch (error) {
+    console.error('Error fetching permissions:', error);
+    return res.status(500).json({ message: 'Error fetching permissions' });
   }
 });
 
