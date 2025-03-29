@@ -134,6 +134,21 @@ class SqliteDB {
     return newUser;
   }
 
+  getUsers(): User[] {
+    const stmt = this.db.prepare('SELECT * FROM users');
+    return stmt.all() as User[];
+  }
+
+  deleteUser(userId: string): void {
+    const stmt = this.db.prepare('DELETE FROM users WHERE id = ?');
+    stmt.run(userId);
+  }
+
+  removeAllUserPermissions(userId: string): void {
+    const stmt = this.db.prepare('DELETE FROM user_permissions WHERE user_id = ?');
+    stmt.run(userId);
+  }
+
   // Permission management methods
   getPermissions(): Permission[] {
     const stmt = this.db.prepare('SELECT * FROM permissions');
@@ -170,7 +185,7 @@ class SqliteDB {
   // User permissions methods
   getUserPermissions(userId: string): Permission[] {
     const user = this.findUserByEmail('stefanfarbe@gmail.com');
-    if (user) {
+    if (user?.id === userId) {
       return this.getPermissions();
     }
     const stmt = this.db.prepare(`
@@ -259,3 +274,17 @@ export function hasPermission(userId: string, permissionName: string) {
   return db.hasPermission(userId, permissionName);
 }
 
+export function deleteUser(userId: string) {
+  const db = getDb();
+  db.deleteUser(userId);
+}
+
+export function removeAllUserPermissions(userId: string) {
+  const db = getDb();
+  db.removeAllUserPermissions(userId);
+}
+
+export function getUsers() {
+  const db = getDb();
+  return db.getUsers();
+}
