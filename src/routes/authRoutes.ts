@@ -108,6 +108,17 @@ router.get('/permissions', authenticate ,(req, res) => {
   }
 });
 
+// Get all available permissions
+router.get('/all-permissions', authenticate, requirePermission('user.change_permissions'), async (req, res) => {
+  try {
+    const permissions = await db.getPermissions();
+    res.json({ permissions });
+  } catch (error) {
+    console.error('Error fetching all permissions:', error);
+    res.status(500).json({ message: 'Error fetching permissions' });
+  }
+});
+
 // Get all users (requires admin permission)
 router.get('/users', authenticate, requirePermission('user.change_permissions'), async (req, res) => {
   try {
