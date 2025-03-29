@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn src/index.ts"
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "pnpm:i": "npm install",
+    "pnpm:install": "npm install"
   },
   "dependencies": {
     "@types/better-sqlite3": "^7.6.12",

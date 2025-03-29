@@ -8,8 +8,7 @@ const router = express.Router();
 router.use(authenticate);
 
 // List all containers
-router.get('/containers', requirePermission('') ,async (req, res, next) => {
-  
+router.get('/containers', requirePermission('container.view'), async (req, res, next) => {
   try {
     const containers = await dockerService.listContainers();
     res.json(containers);
@@ -19,7 +18,7 @@ router.get('/containers', requirePermission('') ,async (req, res, next) => {
 });
 
 // Get a specific container by ID
-router.get('/containers/:id', async (req, res, next) => {
+router.get('/containers/:id', requirePermission('container.view'), async (req, res, next) => {
   try {
     const container = await dockerService.getContainerById(req.params.id);
     res.json(container);
@@ -29,7 +28,7 @@ router.get('/containers/:id', async (req, res, next) => {
 });
 
 // Start a container
-router.post('/containers/:id/start', async (req, res, next) => {
+router.post('/containers/:id/start', requirePermission('container.start'), async (req, res, next) => {
   try {
     await dockerService.startContainer(req.params.id);
     res.json({ success: true, message: 'Container started' });
@@ -39,7 +38,7 @@ router.post('/containers/:id/start', async (req, res, next) => {
 });
 
 // Stop a container
-router.post('/containers/:id/stop', async (req, res, next) => {
+router.post('/containers/:id/stop', requirePermission('container.stop'), async (req, res, next) => {
   try {
     await dockerService.stopContainer(req.params.id);
     res.json({ success: true, message: 'Container stopped' });
@@ -49,7 +48,7 @@ router.post('/containers/:id/stop', async (req, res, next) => {
 });
 
 // Restart a container
-router.post('/containers/:id/restart', async (req, res, next) => {
+router.post('/containers/:id/restart', requirePermission('container.start', 'container.stop'), async (req, res, next) => {
   try {
     await dockerService.restartContainer(req.params.id);
     res.json({ success: true, message: 'Container restarted' });

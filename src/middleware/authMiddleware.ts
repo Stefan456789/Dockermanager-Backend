@@ -54,24 +54,26 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 };
 
 // Middleware to check for specific permission
-export function requirePermission(permission: string) {
-  return (req: Request, res: Response, next: NextFunction) => {
+export function requirePermission(...permission: string[]) {
+  return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
     }
     
-    try {
-      // Check if user has the required permission
-      if (db.hasPermission(req.user.id, permission)) {
-        next();
-      } else {
-        res.status(403).json({ 
-          message: `Access denied: Permission ${permission} required` 
-        });
-      }
-    } catch (error) {
-      console.error('Permission check error:', error);
-      res.status(500).json({ message: 'Error checking permissions' });
+    const userPermissions = await db.getUserPermissions(req.user.id);
+    
+    if (!userPermissions || !Array.isArray(userPermissions)) {
+      return res.status(403).json({ message: 'Access denied: No permissions found' });
     }
+
+    const hasRequiredPermissions = permission.every((perm) => userPermissions.map(p => p.name).includes(perm));
+    
+    if (!hasRequiredPermissions) {
+      return res.status(403).json({ 
+        message: `Access denied: Missing required permissions: ${permission.join(', ')}` 
+      });
+    }
+    
+    next(); // This was missing - call next() to continue to the route handler
   };
 }
