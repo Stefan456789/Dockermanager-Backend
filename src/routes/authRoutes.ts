@@ -118,6 +118,7 @@ router.get('/users', authenticate, requirePermission('user.change_permissions'),
         permissions: await db.getUserPermissions(user.id)
       }))
     );
+    console.log('Fetched users with permissions:', JSON.stringify(usersWithPermissions, null, 2));
     res.json({ users: usersWithPermissions });
   } catch (error) {
     console.error('Error fetching users:', error);
