@@ -22,24 +22,35 @@ export function setupWebSocketServer(server: HttpServer) {
     
     if (!containerId) {
       ws.close(1008, 'Container ID is required');
-      return;
+      console.log('Container ID is required');
+    return;
     }
+    
     
     // Authenticate user
     if (!token) {
       ws.close(1008, 'Authentication required');
+      console.log('Authentication required');
       return;
     }
-    
     try {
       // Verify the JWT token
       const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string };
+          
+      // Find the user in the database
+      const user = await db.findUserByEmail(decoded.email);
       
-      
+      if (!user){
+        ws.close(1008, 'User does not exist');
+        console.log('User does not exist');
+        return
+      }
+
       // Check container-specific permissions using the user context
-      if (!db.hasPermission(decoded.id, 'container.read_console')) {
+      if (!db.hasPermission(user.id, 'container.read_console')) {
         ws.close(1008, 'Not authorized to read console output');
-        return;
+        console.log('Not authorized to read console output');
+      return;
       }
       
       console.log('WebSocket connection established for user:', decoded.email);
