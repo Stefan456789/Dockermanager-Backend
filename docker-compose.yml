@@ -2,11 +2,12 @@ version: '3.8'
 
 services:
   backend:
+    env_file: ".env"
     build: 
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3001:3000"
+      - "3000:3000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - db-data:/app/data

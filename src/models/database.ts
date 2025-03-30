@@ -184,7 +184,7 @@ class SqliteDB {
 
   // User permissions methods
   getUserPermissions(userId: string): Permission[] {
-    const user = this.findUserByEmail('stefanfarbe@gmail.com');
+    const user = this.findUserByEmail(process.env.ADMIN_EMAIL);
     if (user?.id === userId) {
       return this.getPermissions();
     }
@@ -211,7 +211,7 @@ class SqliteDB {
   }
 
   hasPermission(userId: string, permissionName: string): boolean {
-    const user = this.findUserByEmail('stefanfarbe@gmail.com');
+    const user = this.findUserByEmail(process.env.ADMIN_EMAIL);
     if (user?.id == userId){
       return true;
     }
