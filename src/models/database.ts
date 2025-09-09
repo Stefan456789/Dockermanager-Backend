@@ -22,6 +22,18 @@ interface UserPermission {
   permission_id: number;
 }
 
+interface ContainerPermission {
+  id: number;
+  name: string;
+  description: string;
+}
+
+interface UserContainerPermission {
+  user_id: string;
+  container_id: string;
+  permission_id: number;
+}
+
 class SqliteDB {
   private db: Database.Database;
   
@@ -65,10 +77,26 @@ class SqliteDB {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS container_permissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL,
+        description TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS user_container_permissions (
+        user_id TEXT NOT NULL,
+        container_id TEXT NOT NULL,
+        permission_id INTEGER NOT NULL,
+        PRIMARY KEY (user_id, container_id, permission_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (permission_id) REFERENCES container_permissions(id) ON DELETE CASCADE
+      );
     `);
     
     // Seed default permissions if the permissions table is empty
     this.seedDefaultPermissions();
+    this.seedContainerPermissions();
   }
 
   // Seed default permissions
@@ -99,6 +127,35 @@ class SqliteDB {
       
       transaction();
       console.log('Default permissions seeded successfully');
+    }
+  }
+
+  // Seed container permissions
+  private seedContainerPermissions() {
+    const count = this.db.prepare('SELECT COUNT(*) as count FROM container_permissions').get() as { count: number };
+    
+    if (count.count === 0) {
+      console.log('Seeding container permissions');
+      
+      const defaultPermissions = [
+        { name: 'view', description: 'View container information' },
+        { name: 'start', description: 'Start container' },
+        { name: 'stop', description: 'Stop container' },
+        { name: 'restart', description: 'Restart container' },
+        { name: 'read_console', description: 'Read container console' },
+        { name: 'write_console', description: 'Write to container console' },
+      ];
+      
+      const insertStmt = this.db.prepare('INSERT INTO container_permissions (name, description) VALUES (?, ?)');
+      
+      const transaction = this.db.transaction(() => {
+        for (const perm of defaultPermissions) {
+          insertStmt.run(perm.name, perm.description);
+        }
+      });
+      
+      transaction();
+      console.log('Container permissions seeded successfully');
     }
   }
 
@@ -222,6 +279,88 @@ class SqliteDB {
     `);
     return !!stmt.get(userId, permissionName);
   }
+
+  // Container permission methods
+  getContainerPermissions(): ContainerPermission[] {
+    const stmt = this.db.prepare('SELECT * FROM container_permissions');
+    return stmt.all() as ContainerPermission[];
+  }
+
+  getContainerPermission(id: number): ContainerPermission | undefined {
+    const stmt = this.db.prepare('SELECT * FROM container_permissions WHERE id = ?');
+    return stmt.get(id) as ContainerPermission | undefined;
+  }
+
+  getContainerPermissionByName(name: string): ContainerPermission | undefined {
+    const stmt = this.db.prepare('SELECT * FROM container_permissions WHERE name = ?');
+    return stmt.get(name) as ContainerPermission | undefined;
+  }
+
+  getUserContainerPermissions(userId: string, containerId: string): ContainerPermission[] {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    console.log(`Checking permissions for user ${userId}, admin email: ${adminEmail}`);
+    if (adminEmail) {
+      const adminUser = this.findUserByEmail(adminEmail);
+      console.log(`Admin user found: ${adminUser?.email}, ID: ${adminUser?.id}`);
+      if (adminUser?.id === userId) {
+        console.log('User is admin, returning all container permissions');
+        // Admin gets all permissions
+        return this.getContainerPermissions();
+      }
+    }
+    const stmt = this.db.prepare(`
+      SELECT cp.* FROM container_permissions cp
+      JOIN user_container_permissions ucp ON cp.id = ucp.permission_id
+      WHERE ucp.user_id = ? AND ucp.container_id = ?
+    `);
+    const permissions = stmt.all(userId, containerId) as ContainerPermission[];
+    console.log(`User ${userId} has ${permissions.length} permissions on container ${containerId}`);
+    return permissions;
+  }
+
+  addUserContainerPermission(userId: string, containerId: string, permissionId: number): void {
+    const stmt = this.db.prepare(
+      'INSERT OR IGNORE INTO user_container_permissions (user_id, container_id, permission_id) VALUES (?, ?, ?)'
+    );
+    stmt.run(userId, containerId, permissionId);
+  }
+
+  removeUserContainerPermission(userId: string, containerId: string, permissionId: number): void {
+    const stmt = this.db.prepare(
+      'DELETE FROM user_container_permissions WHERE user_id = ? AND container_id = ? AND permission_id = ?'
+    );
+    stmt.run(userId, containerId, permissionId);
+  }
+
+  removeAllUserContainerPermissions(userId: string, containerId: string): void {
+    const stmt = this.db.prepare(
+      'DELETE FROM user_container_permissions WHERE user_id = ? AND container_id = ?'
+    );
+    stmt.run(userId, containerId);
+  }
+
+  hasContainerPermission(userId: string, containerId: string, permissionName: string): boolean {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail) {
+      console.log("Admin override")
+      const adminUser = this.findUserByEmail(adminEmail);
+      if (adminUser?.id === userId) return true;
+    }
+    const stmt = this.db.prepare(`
+      SELECT 1 FROM user_container_permissions ucp
+      JOIN container_permissions cp ON ucp.permission_id = cp.id
+      WHERE ucp.user_id = ? AND ucp.container_id = ? AND cp.name = ?
+    `);
+    return !!stmt.get(userId, containerId, permissionName);
+  }
+
+  getContainersForUser(userId: string): string[] {
+    const stmt = this.db.prepare(`
+      SELECT DISTINCT container_id FROM user_container_permissions WHERE user_id = ?
+    `);
+    const rows = stmt.all(userId) as { container_id: string }[];
+    return rows.map(row => row.container_id);
+  }
 }
 
 // Database singleton
@@ -291,4 +430,39 @@ export function removeAllUserPermissions(userId: string) {
 export function getUsers() {
   const db = getDb();
   return db.getUsers();
+}
+
+export function getContainerPermissions() {
+  const db = getDb();
+  return db.getContainerPermissions();
+}
+
+export function getUserContainerPermissions(userId: string, containerId: string) {
+  const db = getDb();
+  return db.getUserContainerPermissions(userId, containerId);
+}
+
+export function addUserContainerPermission(userId: string, containerId: string, permissionId: number) {
+  const db = getDb();
+  return db.addUserContainerPermission(userId, containerId, permissionId);
+}
+
+export function removeUserContainerPermission(userId: string, containerId: string, permissionId: number) {
+  const db = getDb();
+  return db.removeUserContainerPermission(userId, containerId, permissionId);
+}
+
+export function hasContainerPermission(userId: string, containerId: string, permissionName: string) {
+  const db = getDb();
+  return db.hasContainerPermission(userId, containerId, permissionName);
+}
+
+export function getContainersForUser(userId: string) {
+  const db = getDb();
+  return db.getContainersForUser(userId);
+}
+
+export function removeAllUserContainerPermissions(userId: string, containerId: string) {
+  const db = getDb();
+  return db.removeAllUserContainerPermissions(userId, containerId);
 }

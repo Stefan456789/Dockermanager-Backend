@@ -60,13 +60,16 @@ export function requirePermission(...permission: string[]) {
       return res.status(401).json({ message: 'Authentication required' });
     }
     
+    console.log(`Checking permissions for user ${req.user.email} (${req.user.id})`);
     const userPermissions = await db.getUserPermissions(req.user.id);
+    console.log(`User has ${userPermissions.length} permissions:`, userPermissions.map(p => p.name));
     
     if (!userPermissions || !Array.isArray(userPermissions)) {
       return res.status(403).json({ message: 'Access denied: No permissions found' });
     }
 
     const hasRequiredPermissions = permission.every((perm) => userPermissions.map(p => p.name).includes(perm));
+    console.log(`Has required permissions ${permission}: ${hasRequiredPermissions}`);
     
     if (!hasRequiredPermissions) {
       return res.status(403).json({ 
@@ -75,5 +78,27 @@ export function requirePermission(...permission: string[]) {
     }
     
     next(); // This was missing - call next() to continue to the route handler
+  };
+}
+
+// Middleware to check for specific container permission
+export function requireContainerPermission(permission: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    const containerId = req.params.id;
+    if (!containerId) {
+      return res.status(400).json({ message: 'Container ID required' });
+    }
+    
+    const hasPermission = db.hasContainerPermission(req.user.id, containerId, permission);
+    
+    if (!hasPermission) {
+      return res.status(403).json({ message: `Access denied: Missing permission '${permission}' on container ${containerId}` });
+    }
+    
+    next();
   };
 }
