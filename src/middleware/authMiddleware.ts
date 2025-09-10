@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import * as db from '../models/database';
+import { console } from 'inspector';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -76,7 +77,7 @@ export function requirePermission(...permission: string[]) {
         message: `Access denied: Missing required permissions: ${permission.join(', ')}` 
       });
     }
-    
+    console.log(`User ${req.user.email} (${req.user.id}) passed permission check for: ${permission.join(', ')}`);
     next(); // This was missing - call next() to continue to the route handler
   };
 }
